@@ -1,0 +1,10 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+python-dotenv==1.1.1
+httpx==0.28.1
+Pillow==11.3.0
+ultralytics==8.3.172
+paddleocr==3.4.1
+paddlepaddle-gpu==2.6.2
+pytesseract==0.3.13

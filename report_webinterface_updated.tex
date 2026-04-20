@@ -1,0 +1,971 @@
+\documentclass[12pt,a4paper,openany]{report}
+
+% ===============================
+% Encoding and fonts
+% ===============================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ===============================
+% Page layout
+% ===============================
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ===============================
+% Graphics, tables, math
+% ===============================
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+
+% ===============================
+% Colors
+% ===============================
+\usepackage{xcolor}
+\definecolor{myred}{RGB}{0,0,0}
+\definecolor{mygreen}{RGB}{0,120,0}
+\definecolor{codebg}{rgb}{0.96,0.96,0.96}
+\definecolor{codeframe}{rgb}{0.80,0.80,0.80}
+
+% ===============================
+% Hyperlinks
+% ===============================
+\usepackage[
+  colorlinks=true,
+  linkcolor=myred,
+  urlcolor=myred,
+  citecolor=mygreen
+]{hyperref}
+
+% ===============================
+% Lists and code
+% ===============================
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{comment}
+
+% ===============================
+% Chapter / section formatting
+% ===============================
+\usepackage{titlesec}
+\usepackage{tocloft}
+
+% ===============================
+% Header / footer
+% ===============================
+\usepackage{fancyhdr}
+\usepackage{textcase}
+
+% ===============================
+% Avoid blank pages between chapters
+% ===============================
+\let\cleardoublepage\clearpage
+
+% ===============================
+% Code style
+% ===============================
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codeframe},
+  backgroundcolor=\color{codebg},
+  showstringspaces=false,
+  tabsize=2
+}
+
+% ===============================
+% TOC / LOF / LOT style
+% ===============================
+\renewcommand{\cfttoctitlefont}{\Huge\bfseries}
+\renewcommand{\cftloftitlefont}{\Huge\bfseries}
+\renewcommand{\cftlottitlefont}{\Huge\bfseries}
+
+\renewcommand{\cftchapfont}{\bfseries}
+\renewcommand{\cftchappagefont}{\bfseries}
+\renewcommand{\cftsecfont}{}
+\renewcommand{\cftsecpagefont}{}
+
+\setlength{\cftbeforechapskip}{4pt}
+\setlength{\cftbeforesecskip}{1pt}
+
+% ===============================
+% Chapter titles
+% ===============================
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\color{myred}}
+  {\fontsize{20}{24}\selectfont Chapter \thechapter}
+  {1.2ex}
+  {\Huge\color{myred}}
+  []
+
+\titlespacing*{\chapter}{0pt}{0pt}{2.5em}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{black}}
+  {\thesection}{1em}{}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{black}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{black}}
+  {\thesubsubsection}{1em}{}
+
+% ===============================
+% Header and footer style
+% ===============================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\small\bfseries\textcolor{myred}{\MakeUppercase{\leftmark}}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{%
+  {\color{myred}\hrule width\headwidth height\headrulewidth \vskip-\headrulewidth}
+}
+
+\renewcommand{\chaptermark}[1]{%
+  \markboth{Chapter \thechapter.\ #1}{}}
+
+% ===============================
+% Better itemize spacing
+% ===============================
+\setlist[itemize]{topsep=4pt,itemsep=4pt}
+
+\begin{document}
+
+% ===============================
+% Title Page
+% ===============================
+\begin{titlepage}
+\newgeometry{top=0.5in,left=0.5in,right=0.5in,bottom=1in}
+
+\begin{center}
+\vspace*{1.5cm}
+{\Large University of Tunis El Manar}\\
+{\Large National Engineering School of Tunis}\\
+{\large Department of Information and Communication Technologies}\\
+\vspace{2.5cm}
+\hrule
+\vspace{0.9cm}
+{\Large \textbf{End-of-Year Project Report}}\\
+\vspace{0.7cm}
+\hrule
+\vspace{1.2cm}
+{\Huge \textbf{Net2Terraform WebInterface}}\\
+\vspace{0.2cm}
+{\Large From Network Topology Input to AWS Infrastructure Code}\\
+\vspace{1.2cm}
+\hrule
+\vspace{1.2cm}
+\end{center}
+
+\textbf{Elaborated by:}
+\begin{center}
+   \large{Barhoumi Dhia Eddine}\\[0.2cm]
+   \large{Hammali Wael}
+\end{center}
+
+\vspace{0.7cm}
+\textbf{Supervised by:}
+\begin{center}
+\large\textbf{Ms Wafa Mefteh}
+\end{center}
+
+\vfill
+\begin{center}
+   \large{\textbf{Class:} 2nd year software student}\\
+   \large{\textbf{Academic year:} 2025/2026}
+\end{center}
+
+\end{titlepage}
+
+\restoregeometry
+
+% ===============================
+% Front matter
+% ===============================
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+\pagenumbering{arabic}
+
+% ===============================
+% General Introduction
+% ===============================
+\chapter*{General Introduction}
+\addcontentsline{toc}{chapter}{General Introduction}
+\markboth{General Introduction}{}
+
+Over the last few years, cloud technologies have changed the way infrastructure is created, tested, and maintained. What used to be a long manual process can now be automated with code, versioned like software, and deployed in minutes. In parallel, computer vision and language models have become practical enough to support real engineering workflows rather than only research prototypes.
+
+This report presents the final version of our project: \textbf{Net2Terraform WebInterface}. The goal is simple in wording but complex in execution: \textit{start from a network idea (image or text) and end with deployable AWS infrastructure code}. The application supports two input modes that fit different user habits. The first mode starts from a topology image. The second mode starts from a conversational description in natural language.
+
+In real classrooms and labs, many students can draw correct topologies but still struggle to convert those diagrams into production-ready Infrastructure as Code. This gap is exactly what our web application addresses. It combines object detection, OCR, graph interpretation, LLM-assisted generation, and optional deployment orchestration into a single web workflow.
+
+A major improvement in this updated report is the explicit alignment with the \textbf{current WebInterface implementation}. The architecture, modules, routes, and evaluation now match the codebase that is currently running. Missing chapters from the previous draft are completed, and the discussion gives stronger emphasis to:
+\begin{itemize}
+    \item \textbf{YOLOv8 fine-tuning strategy}.
+    \item \textbf{Roboflow-assisted dataset preparation}, based on \textbf{1200 synthetic images} generated from the notebook workflow.
+    \item \textbf{End-to-end behavior of the web app}, from analysis to Terraform output and deployment monitoring.
+\end{itemize}
+
+The report is structured into six chapters. Chapter 1 introduces context and problem framing. Chapter 2 presents the technical state of the art. Chapter 3 details requirement engineering and functional analysis. Chapter 4 explains the system architecture and data flows. Chapter 5 covers implementation details of backend and frontend modules. Chapter 6 provides testing and evaluation, including model performance and practical usability.
+
+% ===============================
+% Chapter 1
+% ===============================
+\chapter{General Context and Problem Statement}
+
+\section{Introduction}
+
+Network infrastructure design and cloud deployment are often treated as separate activities. In educational settings, students design topologies with symbols and links. In professional settings, engineers deploy infrastructure through scripts and Infrastructure as Code tools. The transition between these two worlds is usually manual, repetitive, and error-prone.
+
+Our project addresses this transition directly. Instead of forcing users to manually rewrite topology logic in Terraform, the platform helps them move from \textit{what they have} (a diagram or a textual intention) to \textit{what they need} (structured, deployable infrastructure code).
+
+\section{Project Context}
+
+The context of this work is driven by four practical trends:
+\begin{itemize}
+    \item \textbf{Cloud-first deployment}: AWS services can model complete virtual networks with VPCs, subnets, route tables, and security groups.
+    \item \textbf{Infrastructure as Code adoption}: Terraform and Ansible reduce manual configuration and improve reproducibility.
+    \item \textbf{Accessible AI tooling}: Modern object detection and OCR pipelines can extract meaningful technical information from diagrams.
+    \item \textbf{Educational need}: Students often understand network logic conceptually but need support to reach real deployment artifacts.
+\end{itemize}
+
+\section{Problem Statement}
+
+A network topology image is informative for humans but not executable by cloud platforms. A text description can express intent but often misses implementation details (interfaces, addressing, route behavior, etc.).
+
+The core problem can be formulated as follows:
+\begin{quote}
+How can a topology provided as an image or as text be transformed automatically into a coherent AWS Infrastructure as Code artifact that can be validated and deployed?
+\end{quote}
+
+This transformation requires solving multiple sub-problems:
+\begin{itemize}
+    \item Detecting network components robustly in diagrams.
+    \item Extracting nearby textual labels from visual context.
+    \item Inferring or validating connectivity.
+    \item Normalizing data into a unified internal representation.
+    \item Generating clean Terraform output consistently.
+\end{itemize}
+
+\section{Project Objectives}
+
+\subsection{Main Objective}
+
+Design and implement a web platform that converts network topologies into AWS Terraform artifacts through two complementary input modes: image-based and text-based.
+
+\subsection{Specific Objectives}
+
+\begin{itemize}
+    \item Build an image pipeline based on YOLOv8 + OCR + topology link detection.
+    \item Build a conversational pipeline that extracts architecture from text and validates missing details interactively.
+    \item Use a common generation logic to produce Terraform code from either pipeline.
+    \item Integrate optional deployment orchestration (init/apply/destroy) with live monitoring.
+    \item Improve detection reliability through YOLO fine-tuning on a custom dataset prepared with Roboflow.
+\end{itemize}
+
+\section{Contributions}
+
+The updated version of the project contributes the following:
+\begin{itemize}
+    \item A complete dual-input web interface with method selection and workflow guidance.
+    \item A production-shaped backend API architecture using FastAPI routers.
+    \item A configurable LLM gateway with provider fallback for text and vision tasks.
+    \item A RAG-enabled chat service grounded by a local rules document.
+    \item A synthetic-data workflow that scales to 1200 images and improves YOLO training quality.
+\end{itemize}
+
+\section{Methodological Approach}
+
+The development process followed four iterative stages:
+\begin{enumerate}
+    \item \textbf{Requirement and workflow analysis}.
+    \item \textbf{Architecture design and module decomposition}.
+    \item \textbf{Implementation and integration}.
+    \item \textbf{Model evaluation and functional validation}.
+\end{enumerate}
+
+Each stage was revisited as soon as practical feedback appeared, especially during integration between CV outputs and Terraform generation.
+
+\section{Conclusion}
+
+This chapter introduced the practical motivation and the engineering problem addressed by the project. The next chapter presents the technological foundations that support our choices in cloud automation, AI-based extraction, and code generation.
+
+% ===============================
+% Chapter 2
+% ===============================
+\chapter{State of the Art and Technological Background}
+
+\section{Introduction}
+
+The solution combines cloud engineering and AI-assisted interpretation. This chapter summarizes the key technologies behind the final system and explains why they were selected for a web application context.
+
+\section{Cloud Computing and AWS Foundations}
+
+Cloud computing provides on-demand resources with elasticity and pay-as-you-go behavior. In our project, AWS is the target environment because it offers a complete set of network and compute primitives needed by generated topologies.
+
+The generated configurations mainly rely on:
+\begin{itemize}
+    \item VPC and subnet segmentation.
+    \item Routing components and Internet access paths.
+    \item EC2 instances for end hosts and generic compute roles.
+    \item Security groups for baseline traffic control.
+\end{itemize}
+
+\section{Infrastructure as Code and Configuration Management}
+
+\subsection{Terraform}
+
+Terraform is used as the central provisioning language because its declarative style simplifies generation from structured topology data. The generated output can be validated, planned, and applied through standard CLI workflows.
+
+\subsection{Ansible in Project Scope}
+
+The current web application focuses primarily on Terraform generation and deployment orchestration. Ansible remains part of the broader project vision for post-provision host configuration, but the active web workflow is centered on Terraform artifacts.
+
+\section{Large Language Models and RAG}
+
+Standard LLMs are powerful in generation but can produce uncertain outputs when context is missing. To improve grounding in the conversational workflow, the project integrates Retrieval-Augmented Generation (RAG):
+\begin{itemize}
+    \item A PDF knowledge source is chunked and indexed.
+    \item Dense retrieval (embeddings + FAISS) and sparse retrieval (BM25) are combined.
+    \item Candidate rules are fused and reranked before final generation prompt construction.
+\end{itemize}
+
+This approach improves consistency between generated Terraform and documented best practices.
+
+\section{YOLOv8 for Topology Component Detection}
+
+YOLOv8 is used as the visual detector in the image pipeline. It provides a practical compromise between speed and precision, which is suitable for interactive web usage.
+
+Key advantages in our context:
+\begin{itemize}
+    \item Fast single-stage inference.
+    \item Strong performance for icon-like object categories.
+    \item Easy integration with Python inference services.
+\end{itemize}
+
+\section{OCR for Label Extraction}
+
+Object symbols alone are not enough for useful code generation. Device naming and contextual labels matter. The project therefore adds OCR extraction around detected node regions. The OCR stack uses PaddleOCR as primary engine with Tesseract fallback. This hybrid strategy improves robustness across varied image quality conditions.
+
+\section{Related Solutions and Positioning}
+
+Existing tools usually solve only one segment of the chain:
+\begin{itemize}
+    \item Diagram tools support visual design but not cloud-ready generation.
+    \item IaC tools support deployment but require manual authoring.
+    \item Generic AI assistants can generate templates but often without reliable visual extraction.
+\end{itemize}
+
+Our positioning is to provide a unified web flow where extraction, validation, generation, and deployment monitoring are linked coherently.
+
+\section{Conclusion}
+
+The selected stack was not chosen for novelty alone, but for practical integration value in a web application pipeline. The next chapter formalizes system requirements and expected behaviors.
+
+% ===============================
+% Chapter 3
+% ===============================
+\chapter{Requirements Engineering and Functional Analysis}
+
+\section{Introduction}
+
+This chapter defines what the WebInterface must do, under which constraints, and for which users. These requirements were derived from real workflow expectations: quick topology conversion, transparent validation, and deployable output.
+
+\section{Stakeholders and User Profiles}
+
+\begin{itemize}
+    \item \textbf{Student user}: wants fast conversion from course-style topology drawings to cloud artifacts.
+    \item \textbf{Instructor/supervisor}: needs readable outputs for teaching and evaluation.
+    \item \textbf{Project developer}: needs maintainable modules and observable API behavior.
+\end{itemize}
+
+\section{Functional Requirements}
+
+\subsection{FR-1: Method Selection}
+
+The user can choose between:
+\begin{itemize}
+    \item Image topology workflow.
+    \item Conversational architecture workflow.
+\end{itemize}
+
+\subsection{FR-2: Image Analysis Workflow}
+
+The system must:
+\begin{itemize}
+    \item Accept PNG/JPG uploads.
+    \item Detect topology components with confidence filtering.
+    \item Infer links from visual structure.
+    \item Extract OCR names near detected objects.
+    \item Return an annotated preview and structured analysis response.
+\end{itemize}
+
+\subsection{FR-3: Terraform Generation from Image Context}
+
+After analysis, the user can trigger LLM generation with:
+\begin{itemize}
+    \item Detected component hints.
+    \item Link list used as authoritative connectivity data.
+    \item Optional user-edited OCR name overrides.
+\end{itemize}
+
+\subsection{FR-4: Conversational Topology Workflow}
+
+The system must:
+\begin{itemize}
+    \item Accept user messages and keep session context.
+    \item Extract architecture JSON from cumulative conversation.
+    \item Validate missing details and ask targeted follow-up questions.
+    \item Generate Terraform once architecture readiness is reached.
+\end{itemize}
+
+\subsection{FR-5: Deployment Orchestration}
+
+The web app must support:
+\begin{itemize}
+    \item Background deployment jobs.
+    \item Real-time log retrieval.
+    \item State extraction from Terraform state file.
+    \item Destroy operation for created infrastructure.
+\end{itemize}
+
+\section{Non-Functional Requirements}
+
+\subsection{NFR-1: Usability}
+
+The workflow must be clear for non-expert users, with visible progress and understandable statuses.
+
+\subsection{NFR-2: Modularity}
+
+Core logic must be split into services and routes to simplify maintenance and testing.
+
+\subsection{NFR-3: Reliability}
+
+Generation should degrade gracefully with provider fallback instead of hard failure when one LLM provider is unavailable.
+
+\subsection{NFR-4: Security Hygiene}
+
+Sensitive keys and credentials must be read from environment variables and never hardcoded in frontend logic.
+
+\subsection{NFR-5: Performance}
+
+Inference and generation latency should remain compatible with interactive web usage.
+
+\section{Use Case Summary}
+
+\begin{table}[H]
+\centering
+\caption{Main use cases of Net2Terraform WebInterface}
+\label{tab:use_cases}
+\begin{tabular}{p{0.2\textwidth} p{0.72\textwidth}}
+\toprule
+\textbf{Use Case} & \textbf{Description} \\
+\midrule
+UC1 & Upload topology image and run analysis (YOLO + links + OCR). \\
+UC2 & Generate Terraform from analyzed image context. \\
+UC3 & Edit OCR names and regenerate improved Terraform. \\
+UC4 & Describe architecture in chat and refine interactively. \\
+UC5 & Deploy generated Terraform and monitor execution logs. \\
+UC6 & Destroy deployed infrastructure from the same interface. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Data and Output Expectations}
+
+\begin{itemize}
+    \item Input image: PNG/JPG.
+    \item Intermediate outputs: detections, links, OCR names, architecture JSON.
+    \item Final output: Terraform \texttt{main.tf} content.
+    \item Optional runtime outputs: deployment logs and parsed resource state.
+\end{itemize}
+
+\section{Conclusion}
+
+This chapter translated user needs into explicit functional and non-functional requirements. The next chapter shows how the architecture implements these requirements using coordinated backend and frontend modules.
+
+% ===============================
+% Chapter 4
+% ===============================
+\chapter{Design and System Architecture}
+
+\section{Introduction}
+
+The architecture is organized around two processing chains that converge into a shared Terraform generation objective. This dual-chain design keeps the platform flexible while preserving a consistent output format.
+
+\section{Global Architecture}
+
+The platform includes:
+\begin{itemize}
+    \item \textbf{Frontend}: static pages for reception, image workflow, and chat workflow.
+    \item \textbf{Backend API}: FastAPI application exposing analysis, chat, deployment, and health routes.
+    \item \textbf{Service layer}: YOLO inference, OCR, vision link extraction, chat/RAG, LLM gateway, and Terraform workspace manager.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Global architecture diagram showing frontend, FastAPI routes, service layer, LLM providers, and AWS deployment path.
+    }}
+    \caption{Global architecture of Net2Terraform WebInterface. Please add a compatible image in assets (example: assets/fig_global_architecture.png).}
+    \label{fig:global_architecture}
+\end{figure}
+
+\section{Chain 1: RAG-Based Text Pipeline}
+
+\subsection{Conversation and Session Logic}
+
+The chat route stores session history in memory. Each new message is merged into a cumulative prompt, then passed to architecture extraction. This allows incremental refinement rather than isolated one-shot parsing.
+
+\subsection{Architecture Extraction and Validation}
+
+The chat service transforms user text into structured JSON with components, edges, and addressing fields. A validation step checks missing links, incomplete router interfaces, and other consistency gaps. If missing data exists, the assistant asks follow-up questions before generation.
+
+\subsection{RAG Retrieval Path}
+
+When architecture is ready, the service retrieves relevant rules from the indexed PDF source. The retrieval stack combines dense search, BM25, reciprocal rank fusion, and reranking to build grounded prompt context.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Sequence diagram for text chain (User message -> extraction -> validation loop -> RAG retrieval -> Terraform generation).
+    }}
+    \caption{Text chain with validation loop and RAG grounding. Please add a compatible image in assets (example: assets/fig_text_chain_sequence.png).}
+    \label{fig:text_chain_sequence}
+\end{figure}
+
+\section{Chain 2: YOLOv8 + OCR Image Pipeline}
+
+\subsection{Detection Stage}
+
+Uploaded images are processed by YOLOv8. Detections are filtered by confidence and converted into typed node identifiers with bounding boxes and center points.
+
+\subsection{Link Inference Stage}
+
+A vision service combines color masks, connected component logic, and Hough line analysis to infer node-to-node connections. This step transforms object-level detection into graph-level topology understanding.
+
+\subsection{OCR Label Stage}
+
+For each detected node, multiple candidate crops (below, above, around) are evaluated. PaddleOCR is used first; Tesseract acts as fallback. Candidate scoring heuristics select the most plausible device label.
+
+\subsection{Generation Context Assembly}
+
+The image generation route sends LLM context containing:
+\begin{itemize}
+    \item Detected component classes.
+    \item Detected links used as authoritative structure.
+    \item OCR name hints and optional user edits.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Image chain diagram (upload -> YOLO -> links -> OCR -> LLM generation -> Terraform output).
+    }}
+    \caption{Image analysis and generation chain. Please add a compatible image in assets (example: assets/fig_image_chain_pipeline.png).}
+    \label{fig:image_chain_pipeline}
+\end{figure}
+
+\section{Shared LLM Gateway and Fallback Strategy}
+
+A dedicated gateway centralizes provider logic. It supports text and vision generation with configurable provider order from environment variables. This improves resilience and avoids hard dependency on a single model endpoint.
+
+\section{Deployment and Monitoring Architecture}
+
+The deployment route creates per-job workspaces, runs Terraform subprocesses asynchronously, and stores logs in memory for incremental retrieval. The frontend polls status, logs, and state endpoints to provide real-time feedback.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Deployment activity diagram (Generate -> Deploy job -> Init/Apply -> Logs/State polling -> Destroy).
+    }}
+    \caption{Deployment orchestration and monitoring flow. Please add a compatible image in assets (example: assets/fig_deploy_activity.png).}
+    \label{fig:deploy_activity}
+\end{figure}
+
+\section{User Interface Design}
+
+The frontend is intentionally split into three pages:
+\begin{itemize}
+    \item Reception page for method selection.
+    \item Image page for topology upload, analysis visualization, Terraform generation, and deployment panel.
+    \item Chat page for iterative architecture discussion and code generation.
+\end{itemize}
+
+This separation reduces user confusion and keeps each workflow focused.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: UI screenshots collage (reception, image workflow, chat workflow).
+    }}
+    \caption{Main web interface views. Please add compatible screenshots in assets (example: assets/fig_ui_views.png).}
+    \label{fig:ui_views}
+\end{figure}
+
+\section{Conclusion}
+
+The architecture balances modularity and practical integration. Both chains are independent at input level but converge toward a unified generation and deployment objective.
+
+% ===============================
+% Chapter 5
+% ===============================
+\chapter{Implementation}
+
+\section{Introduction}
+
+This chapter presents how the architecture was translated into executable modules and user-facing features. The implementation follows a clear split between backend services and frontend interaction logic.
+
+\section{Development Environment}
+
+\subsection{Backend Stack}
+
+\begin{itemize}
+    \item Python with FastAPI and Uvicorn.
+    \item Ultralytics YOLO for object detection.
+    \item PaddleOCR and Tesseract for text extraction.
+    \item Sentence-transformers, FAISS, BM25, and CrossEncoder for RAG retrieval and reranking.
+    \item HTTP clients for multi-provider LLM access.
+\end{itemize}
+
+\subsection{Frontend Stack}
+
+\begin{itemize}
+    \item HTML/CSS/JavaScript pages.
+    \item Tailwind CDN styling and syntax highlighting utilities.
+    \item REST-based integration with backend endpoints.
+\end{itemize}
+
+\section{Backend Implementation by Module}
+
+\subsection{API Bootstrap and Routing}
+
+The backend application initializes CORS middleware and mounts four route groups:
+\begin{itemize}
+    \item Health routes.
+    \item Analyze routes (image chain).
+    \item Chat routes (text chain).
+    \item Deploy routes (Terraform execution lifecycle).
+\end{itemize}
+
+\subsection{Image Analysis Services}
+
+The image chain orchestration route integrates three main services:
+\begin{itemize}
+    \item YOLO service for detections and bounding box extraction.
+    \item Vision service for link detection and visual overlays.
+    \item OCR service for object naming with confidence-aware selection.
+\end{itemize}
+
+\subsection{Chat and RAG Services}
+
+The chat service handles extraction, validation, and generation. RAG initialization is lazy and conditional on the rules document path. This keeps startup behavior practical while still enabling grounded generation when documentation is available.
+
+\subsection{Terraform Deployment Service}
+
+Deployment jobs are isolated in per-job directories and run asynchronously. Logs and state parsing allow transparent progress tracking from the frontend.
+
+\section{Frontend Workflow Implementation}
+
+\subsection{Image Workflow}
+
+The image page implements:
+\begin{itemize}
+    \item File upload and drag-drop UX.
+    \item Progress feedback for analysis and generation phases.
+    \item Detection badges, link validation panel, OCR edit table.
+    \item Copy/download actions for Terraform output.
+    \item Deploy and destroy controls with live logs and resource table.
+\end{itemize}
+
+\subsection{Chat Workflow}
+
+The chat page supports:
+\begin{itemize}
+    \item Iterative conversation with send/reset actions.
+    \item Live architecture summary panel.
+    \item Validation status messaging.
+    \item Terraform preview and export actions.
+\end{itemize}
+
+\section{Integration and Orchestration}
+
+Integration logic focuses on clear contracts between frontend and backend:
+\begin{itemize}
+    \item Structured JSON responses for each workflow stage.
+    \item Reusable job identifiers for deployment monitoring.
+    \item Explicit distinction between analysis stage and generation stage.
+\end{itemize}
+
+\section{Generated Artifacts}
+
+The primary generated artifact is \texttt{main.tf}. Depending on workflow completeness, the user can directly review, download, and optionally deploy this output through the integrated deployment panel.
+
+\section{Challenges Encountered and Practical Fixes}
+
+\subsection{Environment Configuration Conflicts}
+
+During integration, environment precedence created provider key loading issues. This was solved by explicit dotenv path resolution and override behavior.
+
+\subsection{RAG Source Path Robustness}
+
+Initial assumptions around rules document location caused missed RAG initialization. The solution was a configurable rules path parameterized through environment variables.
+
+\subsection{OCR Noise in Diagram Labels}
+
+OCR quality varied by label position and image quality. A multi-crop strategy with scoring heuristics and engine fallback improved label stability.
+
+\section{Conclusion}
+
+Implementation decisions prioritized maintainability and predictable behavior in an interactive web context. The next chapter evaluates the final system quantitatively and functionally.
+
+% ===============================
+% Chapter 6
+% ===============================
+\chapter{Testing and Evaluation}
+
+\section{Introduction}
+
+Evaluation was conducted at three levels:
+\begin{itemize}
+    \item Object detection model quality.
+    \item Functional correctness of web workflows.
+    \item End-to-end quality of generated Terraform outputs.
+\end{itemize}
+
+This chapter emphasizes the dataset strategy and YOLO fine-tuning process, which were major contributors to the final system quality.
+
+\section{Dataset Preparation Strategy}
+
+\subsection{Synthetic Data Generation from Notebook Workflow}
+
+A dedicated notebook pipeline was used to generate synthetic topology scenes with controlled diversity:
+\begin{itemize}
+    \item Icon classes: router, switch, desktop, server, firewall.
+    \item Topology styles: star, ring, chain, and tree-like structures.
+    \item Randomized links, backgrounds, text noise, and visual perturbations.
+\end{itemize}
+
+The initial notebook script was used for iterative prototyping and then scaled to produce \textbf{1200 images} for the final training cycle by increasing generation parameters and running multiple batches.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Notebook-based synthetic generation workflow and sample outputs.
+    }}
+    \caption{Synthetic data generation process from the notebook pipeline. Please add a compatible image in assets (example: assets/fig_dataset_generation_workflow.png).}
+    \label{fig:dataset_generation_workflow}
+\end{figure}
+
+\subsection{Roboflow Curation and Versioning}
+
+After generation, the dataset was prepared in Roboflow for quality control and reproducible training versions:
+\begin{itemize}
+    \item Annotation consistency checks.
+    \item Class normalization and label verification.
+    \item Train/validation/test split management.
+    \item Controlled augmentations for robustness.
+\end{itemize}
+
+This curation phase reduced noisy labels and improved generalization.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Roboflow dataset dashboard (classes, split, version, augmentation setup).
+    }}
+    \caption{Roboflow dataset preparation and versioning view. Please add a compatible image in assets (example: assets/fig_roboflow_dashboard.png).}
+    \label{fig:roboflow_dashboard}
+\end{figure}
+
+\section{YOLOv8 Fine-Tuning Configuration}
+
+\subsection{Model and Training Setup}
+
+The detector was fine-tuned using YOLOv8n to keep inference lightweight for web usage while preserving good detection quality.
+
+Typical training setup included:
+\begin{itemize}
+    \item Input resolution: 640 \(\times\) 640.
+    \item Epochs: 70.
+    \item Batch size: 8.
+    \item Transfer learning from pretrained YOLO weights.
+\end{itemize}
+
+\subsection{Training Behavior}
+
+Training and validation curves showed stable convergence with no major divergence, indicating that augmentation and data quality choices were appropriate.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Training curves (loss, precision, recall over epochs).
+    }}
+    \caption{YOLOv8 training curves. Please add a compatible image in assets (example: assets/train_curves.png).}
+    \label{fig:yolo_train_curves}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Validation curves (mAP@50 and mAP@50-95 over epochs).
+    }}
+    \caption{YOLOv8 validation curves. Please add a compatible image in assets (example: assets/val_curves.png).}
+    \label{fig:yolo_val_curves}
+\end{figure}
+
+\section{Detection Results}
+
+The final training results were very strong and suitable for the application target:
+
+\begin{table}[H]
+\centering
+\caption{Final YOLOv8n validation metrics}
+\label{tab:yolo_final_metrics}
+\begin{tabular}{lc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Precision & 0.993 \\
+Recall & 0.982 \\
+mAP@50 & 0.991 \\
+mAP@50-95 & 0.988 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These values confirm that the detector is reliable enough to support downstream graph extraction and Terraform generation workflows.
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox{0.92\textwidth}{
+        \centering
+        Placeholder: Confusion matrix for final model.
+    }}
+    \caption{Confusion matrix of YOLOv8n on validation data. Please add a compatible image in assets (example: assets/confusion_matrix.png).}
+    \label{fig:yolo_confusion_matrix}
+\end{figure}
+
+\section{Functional Evaluation of the Web App}
+
+\subsection{Image Workflow Tests}
+
+The complete image workflow was tested across PNG/JPG inputs with varying quality:
+\begin{itemize}
+    \item Upload and preprocessing behaved correctly.
+    \item Detection output and link inference were returned consistently.
+    \item OCR names were editable before regeneration.
+    \item Terraform generation was stable when link structure was clear.
+\end{itemize}
+
+\subsection{Chat Workflow Tests}
+
+The chat workflow was tested with complete and incomplete topology descriptions:
+\begin{itemize}
+    \item Missing details were detected by validation logic.
+    \item Follow-up prompts helped complete architecture definition.
+    \item Terraform output was generated once readiness criteria were met.
+\end{itemize}
+
+\subsection{Deployment Workflow Tests}
+
+Deployment routes were validated for:
+\begin{itemize}
+    \item Background job creation.
+    \item Log polling and status transitions.
+    \item Parsed state retrieval.
+    \item Destroy action lifecycle.
+\end{itemize}
+
+\section{Discussion}
+
+The evaluation confirms that model quality and system integration are coherent. The strong YOLO metrics were not achieved by model selection alone; they came from dataset quality, Roboflow curation, and careful fine-tuning. This had a direct positive impact on the user experience in the image workflow.
+
+The text workflow also proved useful for cases where diagrams are unavailable or noisy, and the RAG grounding strategy improved generation confidence in technical prompts.
+
+\section{Limitations and Future Enhancements}
+
+Despite good outcomes, a few limitations remain:
+\begin{itemize}
+    \item OCR still degrades on heavily compressed or rotated text regions.
+    \item Very dense diagrams may produce ambiguous link inference.
+    \item Deployment quality depends on cloud account constraints and region-specific resource availability.
+\end{itemize}
+
+Future improvements include richer post-generation validation, stronger OCR adaptation, and optional multi-cloud mapping.
+
+\section{Conclusion}
+
+This chapter showed that the updated WebInterface is not only functional but also technically solid. The model training results are very good, and the end-to-end workflows demonstrate practical value for network-to-cloud automation.
+
+% ===============================
+% General Conclusion
+% ===============================
+\chapter*{General Conclusion and Perspectives}
+\addcontentsline{toc}{chapter}{General Conclusion and Perspectives}
+\markboth{General Conclusion and Perspectives}{}
+
+This project demonstrates that an end-to-end topology-to-IaC web application is both feasible and useful in practice. By combining computer vision, OCR, conversational extraction, RAG grounding, and Terraform orchestration, Net2Terraform WebInterface bridges a concrete gap between conceptual network design and deployable cloud artifacts.
+
+Compared to the previous report version, this updated document aligns with the real implementation and completes all missing chapters. It also highlights the most impactful technical progress: YOLOv8 fine-tuning supported by Roboflow-curated data built from a large synthetic generation workflow.
+
+The platform is already a strong proof of concept for educational and prototyping contexts. With incremental improvements in OCR robustness, advanced topology mapping, and broader deployment policies, it can evolve into a mature assistant for practical infrastructure engineering.
+
+\begin{thebibliography}{9}
+
+\bibitem{nist_cloud}
+P. Mell and T. Grance,
+\textit{The NIST Definition of Cloud Computing},
+NIST Special Publication 800-145, 2011.
+
+\bibitem{terraform_docs}
+HashiCorp,
+\textit{Terraform Documentation},
+\url{https://developer.hashicorp.com/terraform/docs}.
+
+\bibitem{ultralytics_yolo}
+Ultralytics,
+\textit{YOLOv8 Documentation},
+\url{https://docs.ultralytics.com/}.
+
+\bibitem{roboflow_docs}
+Roboflow,
+\textit{Roboflow Documentation},
+\url{https://docs.roboflow.com/}.
+
+\bibitem{rag_survey}
+P. Lewis et al.,
+\textit{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks},
+NeurIPS, 2020.
+
+\end{thebibliography}
+
+\end{document}
