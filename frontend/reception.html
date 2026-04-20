@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Net2Terraform — Choose Your Method</title>
+    <meta name="description" content="Generate AWS Terraform configurations from a network topology image or by describing your architecture through a smart AI chat." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* ── Reception-specific styles ── */
+      .method-card {
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        border-radius: 28px;
+        border: 1.5px solid rgba(148, 163, 184, 0.35);
+        background: rgba(255,255,255,0.82);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+        transition: transform 0.28s cubic-bezier(.22,.68,0,1.2),
+                    box-shadow 0.28s ease,
+                    border-color 0.22s ease;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        padding: 2.5rem 2.25rem 2rem;
+        color: inherit;
+      }
+
+      .method-card:hover {
+        transform: translateY(-6px) scale(1.01);
+        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.14);
+      }
+
+      /* Image method — blue accent */
+      .method-card.image-method {
+        border-color: rgba(56, 189, 248, 0.5);
+      }
+      .method-card.image-method:hover {
+        border-color: #38bdf8;
+        box-shadow: 0 28px 60px rgba(56, 189, 248, 0.22);
+      }
+      .method-card.image-method .card-accent {
+        background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      }
+      .method-card.image-method .card-btn {
+        background: #0284c7;
+      }
+      .method-card.image-method .card-btn:hover {
+        background: #0369a1;
+      }
+      .method-card.image-method .icon-bg {
+        background: linear-gradient(135deg, #e0f7ff, #bae6fd);
+        color: #0369a1;
+      }
+      .method-card.image-method .tag {
+        background: #e0f2fe;
+        color: #0369a1;
+      }
+
+      /* Chat method — indigo/violet accent */
+      .method-card.chat-method {
+        border-color: rgba(129, 140, 248, 0.5);
+      }
+      .method-card.chat-method:hover {
+        border-color: #818cf8;
+        box-shadow: 0 28px 60px rgba(129, 140, 248, 0.22);
+      }
+      .method-card.chat-method .card-accent {
+        background: linear-gradient(135deg, #818cf8, #6366f1);
+      }
+      .method-card.chat-method .card-btn {
+        background: #4f46e5;
+      }
+      .method-card.chat-method .card-btn:hover {
+        background: #4338ca;
+      }
+      .method-card.chat-method .icon-bg {
+        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+        color: #4338ca;
+      }
+      .method-card.chat-method .tag {
+        background: #ede9fe;
+        color: #4338ca;
+      }
+
+      .card-accent {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        border-radius: 28px 28px 0 0;
+      }
+
+      .icon-bg {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+        flex-shrink: 0;
+      }
+
+      .card-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+      }
+
+      .card-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        flex-grow: 1;
+      }
+
+      .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .feature-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.82rem;
+        color: #475569;
+      }
+      .feature-list li::before {
+        content: "✓";
+        font-weight: 700;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        color: currentColor;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        font-family: "IBM Plex Mono", monospace;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 1.25rem;
+      }
+
+      .card-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 14px;
+        color: #fff;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border: none;
+        transition: background 0.2s ease, transform 0.15s ease;
+        width: 100%;
+        cursor: pointer;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .card-btn:hover {
+        transform: translateY(-1px);
+      }
+
+      /* Separator */
+      .or-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        font-weight: 600;
+        position: relative;
+        padding: 0 0.5rem;
+        user-select: none;
+      }
+      .or-divider::before,
+      .or-divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
+        display: block;
+        width: 100%;
+      }
+
+      /* Hero badge */
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 999px;
+        padding: 0.35rem 1rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #0369a1;
+        font-family: "IBM Plex Mono", monospace;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 2px 8px rgba(15,23,42,0.07);
+      }
+
+      /* Floating orbs */
+      @keyframes float1 {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(5deg); }
+      }
+      @keyframes float2 {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(18px) rotate(-4deg); }
+      }
+
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.45;
+        pointer-events: none;
+        filter: blur(60px);
+      }
+      .orb-1 {
+        width: 380px; height: 380px;
+        background: radial-gradient(circle, #bae6fd, transparent);
+        top: -120px; left: -100px;
+        animation: float1 8s ease-in-out infinite;
+      }
+      .orb-2 {
+        width: 300px; height: 300px;
+        background: radial-gradient(circle, #ddd6fe, transparent);
+        top: 40%; right: -80px;
+        animation: float2 10s ease-in-out infinite;
+      }
+      .orb-3 {
+        width: 250px; height: 250px;
+        background: radial-gradient(circle, #c7d2fe, transparent);
+        bottom: -60px; left: 35%;
+        animation: float1 12s ease-in-out infinite;
+      }
+
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .anim-fade-up { animation: fadeUp 0.55s cubic-bezier(.22,.68,0,1.1) both; }
+      .anim-delay-1 { animation-delay: 0.1s; }
+      .anim-delay-2 { animation-delay: 0.2s; }
+      .anim-delay-3 { animation-delay: 0.35s; }
+
+      /* Responsive grid for cards */
+      .cards-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        align-items: stretch;
+      }
+      @media (min-width: 768px) {
+        .cards-grid {
+          grid-template-columns: 1fr auto 1fr;
+          gap: 0;
+          align-items: center;
+        }
+        .or-divider {
+          flex-direction: column;
+          writing-mode: initial;
+          width: 2.5rem;
+          height: 100%;
+          max-height: 350px;
+          align-self: stretch;
+          margin: 0 0.75rem;
+        }
+        .or-divider::before,
+        .or-divider::after {
+          width: 1px;
+          height: 100%;
+          flex: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Background orbs -->
+    <div class="orb orb-1" aria-hidden="true"></div>
+    <div class="orb orb-2" aria-hidden="true"></div>
+    <div class="orb orb-3" aria-hidden="true"></div>
+
+    <div class="min-h-screen bg-grid" style="min-height:100vh; position:relative; z-index:1;">
+      <main class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+
+        <!-- ── Header ── -->
+        <header class="mb-12 text-center anim-fade-up">
+          <div class="hero-badge" style="margin:0 auto 1.5rem;">
+            <span>⚡</span> AWS Infrastructure Automation
+          </div>
+          <h1 class="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl" style="letter-spacing:-0.03em;">
+            Net<span style="color:#0284c7;">2</span>Terraform
+          </h1>
+          <p class="mt-4 text-lg text-slate-600 max-w-xl mx-auto leading-relaxed">
+            Generate production-grade AWS Terraform configurations from your network topology — choose the method that suits you best.
+          </p>
+        </header>
+
+        <!-- ── Method Cards ── -->
+        <section class="anim-fade-up anim-delay-2" aria-label="Choose a configuration method">
+          <div class="cards-grid">
+
+            <!-- Card 1 — Image Method -->
+            <a id="card-image" href="index.html" class="method-card image-method" role="link" aria-label="Image topology method">
+              <div class="card-accent" aria-hidden="true"></div>
+
+              <div class="icon-bg" aria-hidden="true">🖼️</div>
+
+              <span class="tag">
+                <span>📷</span> Vision · YOLO
+              </span>
+
+              <h2 class="card-title">Image Topology</h2>
+              <p class="card-subtitle">
+                Upload a scanned or drawn network diagram and let the AI automatically detect devices and connections, then generate a ready-to-deploy Terraform configuration.
+              </p>
+
+              <ul class="feature-list" aria-label="Features">
+                <li>YOLO-based device detection</li>
+                <li>Automatic topology graph extraction</li>
+                <li>Visual annotation with bounding boxes</li>
+                <li>OCR-based device name recognition</li>
+                <li>One-click AWS deployment via Terraform</li>
+              </ul>
+
+              <button class="card-btn" tabindex="-1" aria-hidden="true">
+                Start with an Image
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+            </a>
+
+            <!-- OR divider -->
+            <div class="or-divider" aria-hidden="true">
+              <span>OR</span>
+            </div>
+
+            <!-- Card 2 — Chat Method -->
+            <a id="card-chat" href="chat.html" class="method-card chat-method" role="link" aria-label="Conversational chat method">
+              <div class="card-accent" aria-hidden="true"></div>
+
+              <div class="icon-bg" aria-hidden="true">💬</div>
+
+              <span class="tag">
+                <span>🤖</span> RAG · LLM
+              </span>
+
+              <h2 class="card-title">Describe Your Network</h2>
+              <p class="card-subtitle">
+                Describe your network architecture in plain language through an interactive AI chat. The assistant will ask clarifying questions, validate the topology, and generate Terraform code.
+              </p>
+
+              <ul class="feature-list" aria-label="Features">
+                <li>Natural language architecture input</li>
+                <li>Retrieval-Augmented Generation (RAG)</li>
+                <li>Iterative clarification dialogue</li>
+                <li>Automatic VLSM IP addressing</li>
+                <li>Rules-aware Terraform generation</li>
+              </ul>
+
+              <button class="card-btn" tabindex="-1" aria-hidden="true">
+                Start with Chat
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
+            </a>
+
+          </div>
+        </section>
+
+        <!-- ── Footer comparison table ── -->
+        <section class="mt-12 anim-fade-up anim-delay-3">
+          <div class="rounded-3xl glass-panel p-6">
+            <h2 class="text-base font-semibold text-slate-700 mb-4 text-center">Quick Comparison</h2>
+            <div class="overflow-x-auto">
+              <table class="state-table w-full text-sm">
+                <thead>
+                  <tr>
+                    <th class="text-left text-slate-500 font-medium text-xs uppercase tracking-wide py-2 px-3">Feature</th>
+                    <th class="text-center text-sky-700 font-semibold py-2 px-3">🖼️ Image Method</th>
+                    <th class="text-center text-indigo-700 font-semibold py-2 px-3">💬 Chat Method</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="py-2 px-3 text-slate-600">Input type</td>
+                    <td class="py-2 px-3 text-center text-slate-700">PNG / JPG diagram</td>
+                    <td class="py-2 px-3 text-center text-slate-700">Natural language</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-slate-600">Best for</td>
+                    <td class="py-2 px-3 text-center text-slate-700">Existing diagrams</td>
+                    <td class="py-2 px-3 text-center text-slate-700">New architectures</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-slate-600">AI model</td>
+                    <td class="py-2 px-3 text-center text-slate-700">YOLO + LLM</td>
+                    <td class="py-2 px-3 text-center text-slate-700">Gemini + RAG</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-3 text-slate-600">IP addressing</td>
+                    <td class="py-2 px-3 text-center text-slate-700">Auto-generated</td>
+                    <td class="py-2 px-3 text-center text-slate-700">Manual or auto (VLSM)</td>
+                  </tr>
+                  <tr style="border-bottom:none;">
+                    <td class="py-2 px-3 text-slate-600">Output</td>
+                    <td class="py-2 px-3 text-center text-slate-700 font-mono text-xs">main.tf</td>
+                    <td class="py-2 px-3 text-center text-slate-700 font-mono text-xs">main.tf + mapping</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <script>
+      // Allow clicking anywhere on the card (not just the button)
+      document.querySelectorAll('.method-card').forEach(card => {
+        card.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            card.click();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
