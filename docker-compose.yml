@@ -1,0 +1,18 @@
+services:
+  net2terraform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: net2terraform-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      PORT: "8000"
+      TESSERACT_CMD: /usr/bin/tesseract
+      YOLO_WEIGHTS: backend/best.pt
+      RULES_PDF_PATH: backend/rules.pdf
+    volumes:
+      - ./backend/deployments:/app/backend/deployments
+    restart: unless-stopped

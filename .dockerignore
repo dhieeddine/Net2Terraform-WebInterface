@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# Python environments and caches
+.venv/
+venv/
+.venv-gpu/
+venv-gpu/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local env/secrets
+.env
+
+# Build outputs and logs
+*.log
+backend/deployments/
+
+# Local notebooks and drafts
+generatedataset.ipynb
+interraction.py
+
+# Frontend/node artifacts (if added later)
+node_modules/
