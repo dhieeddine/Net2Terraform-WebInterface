@@ -1,40 +1,83 @@
 # Net2Terraform 🚀
 
-**Net2Terraform** is an intelligent automation tool that bridges the gap between manual network design and Infrastructure as Code (IaC). It offers two powerful methods to generate ready-to-deploy AWS Terraform configurations:
+**Net2Terraform** converts network designs into AWS Terraform (`main.tf`) using either images or conversational input.
 
 1.  **🖼️ Image Topology**: Convert a photo or scan of a network diagram using computer vision (YOLOv8 + OCR).
-2.  **💬 Architecture Chat**: Describe your network in natural language through an interactive AI-powered conversation (Gemini + RAG).
+2.  **💬 Architecture Chat**: Describe your network in natural language through an interactive AI-powered conversation (LLM + RAG).
 
 ---
 
-## 🎯 The Goal
+## 🎯 Goal
 
-The primary objective of this project is to **eliminate the manual overhead** of translating visual or conceptual network designs into cloud infrastructure. Instead of manually writing VPCs, subnets, instances, and routing tables, users can simply upload a diagram or describe their intent to receive a functional `main.tf` file in seconds.
+The project removes manual Terraform drafting for common network topologies. Users can upload a topology diagram or describe an architecture and receive generated Terraform with deployment workflows.
 
-This tool is ideal for:
-- **Rapid Prototyping**: Moving from a whiteboard sketch to a cloud environment instantly.
-- **Legacy Documentation**: Converting old network diagrams into modern IaC.
-- **Interactive Design**: Building complex architectures through a guided conversational agent.
+Best suited for:
+- **Rapid prototyping** from diagrams to IaC.
+- **Modernizing legacy documentation** into editable Terraform.
+- **Interactive architecture design** with validation prompts.
 
 ---
 
 ## 🧠 Two Ways to Build
 
 ### 1. Image Topology Method (Vision)
-Uses a multi-stage pipeline combining **Computer Vision**, **Topological Analysis**, and **LLMs**:
+Pipeline stages:
 - **YOLOv8**: Detects network components (routers, switches, PCs, firewalls).
 - **Geometric Analysis**: Identifies cable connections between detected nodes.
-- **PaddleOCR**: Extracts labels and device names directly from the image.
-- **LLM Refinement**: Translates the detected graph into optimized Terraform code.
+- **PaddleOCR + Tesseract**: Both OCR engines are used together to extract labels and device names.
+- **Vision LLM synthesis**: Builds Terraform from image + detections + links + OCR hints.
 
 ### 2. Architecture Chat Method (Conversational)
-Provides a guided dialogue to specify infrastructure requirements:
-- **Natural Language Extraction**: Gemini extracts structured components and links from user text.
-- **Interactive Validation**: The assistant identifies missing information (e.g., disconnected nodes) and asks clarifying questions.
-- **RAG (Retrieval-Augmented Generation)**: Uses technical documentation (like `rules.pdf`) to ensure configurations meet specific best practices.
-- **Automated IP Addressing**: Implements VLSM logic to calculate subnets and CIDRs automatically.
+Pipeline stages:
+- **Natural language extraction**: Structured components and links are extracted through the LLM gateway.
+- **Interactive validation**: The assistant identifies missing information (for example, disconnected nodes).
+- **RAG (Retrieval-Augmented Generation)**: Uses technical documentation (`rules.pdf`) to guide generation.
 
 ---
+
+## 🗺️ Global Pipeline Architecture
+
+```mermaid
+flowchart LR
+    U[User] --> FE[Frontend UI\nreception.html / index.html / chat.html]
+    FE --> API[FastAPI Backend\nbackend/app/main.py]
+
+    API --> A1[/api/analyze]
+    API --> G1[/api/generate-terraform]
+    API --> C1[/api/chat/send]
+    API --> D1[/api/deploy]
+
+    subgraph VisionPipeline[Vision Pipeline]
+        IMG[Uploaded Network Diagram] --> YOLO[YOLO Service\nobject detection]
+        YOLO --> VISION[Vision Service\nlink detection]
+        YOLO --> OCR[OCR Service\nlabel extraction]
+        VISION --> G1
+        OCR --> G1
+        YOLO --> G1
+        G1 --> OR[OpenRouter/Oxlo via LLM Gateway\nTerraform synthesis from image + hints]
+    end
+
+    subgraph ChatPipeline[Conversational Pipeline]
+        CHAT[User Architecture Description] --> CHATSRV[Chat Service]
+        CHATSRV --> LLMTXT[Gemini/OpenRouter/Oxlo via LLM Gateway\nJSON extraction + validation]
+        CHATSRV --> RAG[RAG Layer\nrules.pdf chunking + FAISS + BM25 + reranking]
+        RAG --> CHATSRV
+        LLMTXT --> CHATSRV
+        CHATSRV --> TFCHAT[Terraform code from structured architecture]
+        C1 --> CHATSRV
+    end
+
+    OR --> TF[Generated main.tf]
+    TFCHAT --> TF
+
+    TF --> D1
+    D1 --> TFSVC[Terraform Service\nworkspace + terraform init/apply/destroy]
+    TFSVC --> AWS[AWS Resources\nVPC / Subnets / EC2 / Routing]
+    TFSVC --> STATE[Job Logs + Parsed State\n/api/deploy/{job_id}/logs, /state]
+```
+
+---
+
 
 ## 📂 Project Structure
 
@@ -43,22 +86,30 @@ webInterface/
 ├── .env
 ├── .gitignore
 ├── README.md
-├── rules.pdf                    # [Optional] Context for the RAG chat method
 ├── backend/
 │   ├── requirements.txt
+│   ├── gpu_requirements.txt
 │   ├── best.pt                  # YOLO model weights
+│   ├── rules.pdf                # [Optional] Context for the RAG chat method
 │   └── app/
 │       ├── main.py              # FastAPI bootstrap & router mounting
+│       ├── core/
+│       │   └── config.py        # Environment + runtime settings
 │       ├── routes/
 │       │   ├── analyze.py       # Image analysis endpoints
 │       │   ├── chat.py          # Conversational/RAG endpoints
 │       │   ├── deploy.py        # AWS Deployment orchestration
 │       │   └── health.py        # Health check
 │       └── services/
-│           ├── chat_service.py  # Gemini + RAG logic
-│           ├── deploy_service.py# Terraform CLI wrapper
-│           ├── vision_service.py# Geometric link detection
-│           └── yolo_service.py  # Object detection
+│           ├── chat_service.py      # RAG + architecture extraction + validation
+│           ├── llm_gateway.py       # Provider routing/fallback for LLM calls
+│           ├── openrouter_service.py# Vision->Terraform prompt orchestration
+│           ├── ocr_service.py       # PaddleOCR + Tesseract label extraction
+│           ├── terraform_service.py # Terraform CLI job/workspace manager
+│           ├── vision_service.py    # Geometric link detection
+│           └── yolo_service.py      # Object detection
+├── Dockerfile
+├── docker-compose.yml
 └── frontend/
     ├── reception.html           # Main landing page (Method selector)
     ├── index.html               # Image method interface
@@ -71,11 +122,12 @@ webInterface/
 ## 🛠️ Prerequisites
 
 1.  **Python 3.10+**
-2.  **API Keys**:
-    - **Google Gemini API Key** (for Chat/RAG method)
-    - **OpenRouter API Key** (for Image method LLM)
+2.  **API Keys** (at least one configured provider per workflow):
+    - **Google Gemini API Key** (optional, for chat/text provider)
+    - **OpenRouter API Key** (optional, for vision/text provider)
+    - **Oxlo API Key** (optional, for vision/text provider)
 3.  **YOLO weights**: `best.pt` file in the `backend/` directory.
-4.  **Hardware**: CPU or GPU (Sentence-transformers and YOLO will utilize CUDA if available).
+4.  **Hardware**: CPU works; GPU is optional and used when available.
 
 ## ⚙️ Environment Configuration
 
@@ -85,7 +137,13 @@ Edit `.env` at the project root:
 # AI & ML
 GOOGLE_API_KEY=your_gemini_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
+OXLO_API_KEY=your_oxlo_api_key
 YOLO_WEIGHTS=backend/best.pt
+RULES_PDF_PATH=backend/rules.pdf
+
+# Provider order / failover
+CHAT_LLM_PROVIDERS=google,openrouter,oxlo
+VISION_LLM_PROVIDERS=openrouter,oxlo
 
 # AWS Credentials (for Deployment)
 AWS_ACCESS_KEY_ID=your_access_key
@@ -112,13 +170,17 @@ pip install -r backend/requirements.txt
 ```powershell
 # Start FastAPI backend
 uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# Serve frontend (in a separate terminal)
-python -m http.server 5173 --directory frontend
 ```
 
 ### 3. Usage
-Open `http://localhost:5173/reception.html` to choose your preferred method.
+Open `http://localhost:8000/` (or `http://localhost:8000/reception.html`) to choose your preferred method.
+
+### 4. Optional GPU dependencies
+If you want GPU OCR/inference support, install:
+
+```powershell
+pip install -r backend/gpu_requirements.txt
+```
 
 ---
 
@@ -156,11 +218,13 @@ Notes:
 - `POST /api/chat/reset`: Resets the conversational session.
 
 ### Vision Method (Image)
-- `POST /api/analyze`: Orchestrates YOLO, Vision, and LLM services to return a topology JSON + main.tf.
-- `POST /api/generate-terraform`: Specific endpoint for iterative LLM refinement of detected topologies.
+- `POST /api/analyze`: Runs YOLO + link detection + OCR and returns detections, links, OCR names, and an annotated image.
+- `POST /api/generate-terraform`: Generates Terraform from image + detected hints + optional OCR name overrides.
 
 ### Deployment Service
 - `POST /api/deploy`: Submits a Terraform code payload for AWS deployment.
+- `GET /api/deploy/jobs`: Lists known deployment jobs.
+- `GET /api/deploy/{job_id}`: Returns job status and metadata.
 - `GET /api/deploy/{job_id}/logs`: Fetches real-time execution logs.
 - `GET /api/deploy/{job_id}/state`: Retrieves parsed resource information from the deployment.
 - `POST /api/deploy/{job_id}/destroy`: Triggers infrastructure teardown.
@@ -168,6 +232,6 @@ Notes:
 ---
 
 ## 📝 Notes
-- **RAG Capability**: Place a `rules.pdf` in the root directory to ground the Chat Assistant in specific infrastructure rules.
+- **RAG Capability**: Place a `rules.pdf` at `backend/rules.pdf` (or set `RULES_PDF_PATH`) to improve chat-grounded generation.
 - **Glass-Morphic Design**: The frontend utilizes a shared modern CSS design system for a premium user experience across all modules.
 - **Security**: AWS credentials and API keys are strictly managed via environment variables.

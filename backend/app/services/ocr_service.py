@@ -546,12 +546,55 @@ def _tesseract_best_text(crops: list[tuple[str, Image.Image]]) -> str:
     return best_text
 
 
+def _score_final_label(label: str) -> float:
+    normalized = _canonicalize_device_label(label) or _normalize_ocr_text(label)
+    if not normalized:
+        return float("-inf")
+
+    compact = normalized.replace(" ", "")
+    score = float(len(compact))
+
+    if any(ch.isdigit() for ch in compact):
+        score += 25.0
+    if re.match(r"^(PC|Router|Switch|Firewall|Server)\d{1,3}$", compact):
+        score += 30.0
+    elif re.match(r"^(PC|Router|Switch|Firewall|Server)$", compact):
+        score += 15.0
+
+    return score
+
+
+def _merge_ocr_texts(paddle_text: str, tesseract_text: str) -> str:
+    paddle_label = _canonicalize_device_label(paddle_text) if paddle_text else ""
+    tesseract_label = _canonicalize_device_label(tesseract_text) if tesseract_text else ""
+
+    if not paddle_label and not tesseract_label:
+        return ""
+    if paddle_label and not tesseract_label:
+        return paddle_label
+    if tesseract_label and not paddle_label:
+        return tesseract_label
+
+    # If one engine extracts a numbered device and the other only extracts a class,
+    # prefer the numbered label since it is usually more specific.
+    paddle_has_number = bool(re.search(r"\d", paddle_label))
+    tesseract_has_number = bool(re.search(r"\d", tesseract_label))
+    if paddle_has_number and not tesseract_has_number:
+        return paddle_label
+    if tesseract_has_number and not paddle_has_number:
+        return tesseract_label
+
+    paddle_score = _score_final_label(paddle_label)
+    tesseract_score = _score_final_label(tesseract_label)
+    if tesseract_score > paddle_score:
+        return tesseract_label
+    return paddle_label
+
+
 def _ocr_best_text(crops: list[tuple[str, Image.Image]]) -> str:
     paddle_text = _paddleocr_best_text(crops)
-    if paddle_text:
-        return paddle_text
-
-    return _tesseract_best_text(crops)
+    tesseract_text = _tesseract_best_text(crops)
+    return _merge_ocr_texts(paddle_text, tesseract_text)
 
 
 def extract_object_names(
