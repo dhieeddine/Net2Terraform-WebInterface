@@ -63,9 +63,7 @@ synth_topology_dataset/
 synth_topology_dataset.zip
 interraction.py
 
-# Large model artifacts
-*.pt
-!backend/best.pt
+
 
 # Frontend package artifacts (if frontend tooling is added later)
 node_modules/__pycache__/
@@ -78,3 +76,16 @@ venv-gpu/
 *.log
 generatedataset.ipynb
 interraction.py
+Rapport (1).pdf
+Rapport (2).pdf
+Rapport.pdf
+Rapport_sec.pdf
+backend/requirements.docker.txt
+class-diagram.html
+code-backend-imports.html
+code-vision-ocr-imports.html
+confusion_matrix.png
+fullcode.ipynb
+global-architecture.html
+results (2).png
+results.png

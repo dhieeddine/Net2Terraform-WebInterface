@@ -3,9 +3,12 @@ import re
 import json
 import math
 import logging
+import hashlib
+import pickle
 import torch
 import numpy as np
 import ipaddress
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from sentence_transformers import SentenceTransformer, CrossEncoder
@@ -29,6 +32,8 @@ FINAL_TOP_K = 5
 
 CHUNK_SIZE_WORDS = 420
 CHUNK_OVERLAP_WORDS = 70
+RAG_RECALL_MULTIPLIER = 3
+RAG_MIN_RECALL_K = 14
 
 class Component(BaseModel):
     id: str
@@ -73,6 +78,8 @@ class ChatService:
         self.faiss_index = None
         self.bm25_index = None
         self.corpus_texts = []
+        self.rag_ready = False
+        self.rag_error: str | None = None
         
         if pdf_path and os.path.exists(pdf_path):
             self._initialize_rag()
@@ -97,9 +104,17 @@ class ChatService:
         try:
             self.corpus = self._build_corpus(self.pdf_path)
             if self.corpus:
-                self.faiss_index, self.bm25_index, self.corpus_texts = self._build_indices(self.corpus)
-                logger.info("RAG indices built successfully.")
+                self.faiss_index, self.bm25_index, self.corpus_texts = self._build_or_load_indices(self.corpus)
+                self.rag_ready = True
+                self.rag_error = None
+                logger.info("RAG indices ready. chunks=%d", len(self.corpus))
+            else:
+                self.rag_ready = False
+                self.rag_error = "rules source parsed but produced zero chunks"
+                logger.warning("RAG initialization skipped because chunk list is empty")
         except Exception as e:
+            self.rag_ready = False
+            self.rag_error = str(e)
             logger.error(f"Failed to initialize RAG: {e}")
 
     def _normalize_text(self, text: str) -> str:
@@ -145,48 +160,165 @@ class ChatService:
         bm25 = BM25Okapi(tokenized_corpus)
         return index, bm25, texts
 
+    def _pdf_fingerprint(self) -> str:
+        path = Path(self.pdf_path or "")
+        if not path.exists():
+            return "missing"
+        stat = path.stat()
+        raw = f"{path.resolve()}::{stat.st_mtime_ns}::{stat.st_size}"
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+    def _cache_paths(self) -> tuple[Path, Path]:
+        root = Path(__file__).resolve().parents[2]
+        cache_dir = root / "rag_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        stamp = self._pdf_fingerprint()
+        return (
+            cache_dir / f"rules_{stamp}.index",
+            cache_dir / f"rules_{stamp}.pkl",
+        )
+
+    def _build_or_load_indices(self, corpus):
+        index_path, meta_path = self._cache_paths()
+        if index_path.exists() and meta_path.exists():
+            try:
+                index = faiss.read_index(str(index_path))
+                with meta_path.open("rb") as handle:
+                    payload = pickle.load(handle)
+
+                texts = payload.get("texts", []) if isinstance(payload, dict) else []
+                tokenized = payload.get("tokenized", []) if isinstance(payload, dict) else []
+                if not texts or not tokenized:
+                    raise ValueError("Cached RAG metadata is incomplete")
+
+                bm25 = BM25Okapi(tokenized)
+                logger.info("Loaded cached RAG index from %s", index_path)
+                return index, bm25, texts
+            except Exception as exc:
+                logger.warning("Invalid RAG cache detected, rebuilding index: %s", exc)
+                try:
+                    index_path.unlink(missing_ok=True)
+                    meta_path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+        index, bm25, texts = self._build_indices(corpus)
+        tokenized = [t.lower().split() for t in texts]
+        faiss.write_index(index, str(index_path))
+        with meta_path.open("wb") as handle:
+            pickle.dump({"texts": texts, "tokenized": tokenized}, handle)
+        logger.info("Built and cached RAG index at %s", index_path)
+        return index, bm25, texts
+
+    def _query_expansions(self, query: str) -> list[str]:
+        lower = query.lower()
+        expanded = [query]
+
+        if "bastion" in lower:
+            expanded.extend([
+                "bastion host public ssh jump host",
+                "private hosts ssh only from bastion",
+            ])
+        if "nat" in lower or "outbound" in lower or "internet" in lower:
+            expanded.extend([
+                "private subnet outbound internet nat gateway",
+                "nat gateway route table private subnet",
+            ])
+        if "router" in lower and "switch" in lower:
+            expanded.append("router switch mapping vpc subnet design")
+        if "firewall" in lower or "security group" in lower:
+            expanded.append("firewall as security group defaults")
+
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in expanded:
+            key = item.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+    def _metadata_boost(self, query: str, text: str) -> float:
+        q = query.lower()
+        t = text.lower()
+        boost = 0.0
+
+        if "bastion" in q and "bastion" in t:
+            boost += 0.8
+        if ("nat" in q or "internet" in q) and ("nat" in t or "internet gateway" in t):
+            boost += 0.7
+        if "security group" in q and "security group" in t:
+            boost += 0.6
+        if "transit gateway" in q and "transit gateway" in t:
+            boost += 0.9
+        if "peering" in q and "peering" in t:
+            boost += 0.8
+
+        return boost
+
     def _retrieve_rules(self, query: str):
         if not self.faiss_index:
             return []
-            
-        # Dense search
-        q_emb = self.embedder.encode([query], convert_to_numpy=True, normalize_embeddings=True).astype("float32")
-        scores, ids = self.faiss_index.search(q_emb, DENSE_TOP_K)
-        dense_results = []
-        for score, idx in zip(scores[0], ids[0]):
-            if idx != -1:
-                item = dict(self.corpus[idx]); item["idx"] = idx; item["retrieval_source"] = "dense"
-                dense_results.append(item)
-        
-        # BM25 search
-        q_tokens = query.lower().split()
-        bm_scores = self.bm25_index.get_scores(q_tokens)
-        best_ids = np.argsort(bm_scores)[::-1][:BM25_TOP_K]
-        bm25_results = []
-        for idx in best_ids:
-            item = dict(self.corpus[idx]); item["idx"] = int(idx); item["retrieval_source"] = "bm25"
-            bm25_results.append(item)
-            
-        # RRF Fusion
-        fused = {}
-        for results in [dense_results, bm25_results]:
-            for rank, item in enumerate(results, start=1):
-                idx = item["idx"]
-                if idx not in fused:
-                    fused[idx] = dict(item); fused[idx]["fused_score"] = 0.0
-                fused[idx]["fused_score"] += 1.0 / (60 + rank)
-        
-        candidates = sorted(fused.values(), key=lambda x: x["fused_score"], reverse=True)[:RERANK_TOP_K]
-        if not candidates: return []
-        
-        # Rerank
-        pairs = [[query, item["text"]] for item in candidates]
+
+        recall_k = max(RAG_MIN_RECALL_K, FINAL_TOP_K * RAG_RECALL_MULTIPLIER)
+        dense_candidates: dict[int, float] = {}
+        for expanded_query in self._query_expansions(query):
+            q_emb = self.embedder.encode([expanded_query], convert_to_numpy=True, normalize_embeddings=True).astype("float32")
+            scores, ids = self.faiss_index.search(q_emb, recall_k)
+            for score, idx in zip(scores[0], ids[0]):
+                if idx < 0:
+                    continue
+                dense_candidates[idx] = max(float(score), dense_candidates.get(idx, float("-inf")))
+
+        bm25_candidates: dict[int, float] = {}
+        bm25_scores = self.bm25_index.get_scores(query.lower().split())
+        for idx in np.argsort(bm25_scores)[::-1][:max(BM25_TOP_K, recall_k)]:
+            bm25_candidates[int(idx)] = float(bm25_scores[idx])
+
+        fused: dict[int, dict[str, float | int]] = {}
+        for rank, (idx, score) in enumerate(sorted(dense_candidates.items(), key=lambda x: x[1], reverse=True), start=1):
+            fused[idx] = {
+                "idx": idx,
+                "vector_score": score,
+                "bm25_score": bm25_candidates.get(idx, 0.0),
+                "rrf": 1.0 / (60 + rank),
+            }
+
+        for rank, (idx, score) in enumerate(sorted(bm25_candidates.items(), key=lambda x: x[1], reverse=True), start=1):
+            if idx not in fused:
+                fused[idx] = {"idx": idx, "vector_score": dense_candidates.get(idx, 0.0), "bm25_score": score, "rrf": 0.0}
+            fused[idx]["rrf"] = float(fused[idx]["rrf"]) + (1.0 / (60 + rank))
+
+        candidates = sorted(fused.values(), key=lambda x: float(x["rrf"]), reverse=True)[:RERANK_TOP_K]
+        if not candidates:
+            return []
+
+        pairs = [[query, self.corpus[int(item["idx"])]["text"]] for item in candidates]
         rr_scores = self.reranker.predict(pairs)
-        for item, score in zip(candidates, rr_scores):
-            item["rerank_score"] = float(score)
-        
-        candidates.sort(key=lambda x: x["rerank_score"], reverse=True)
-        return candidates[:FINAL_TOP_K]
+
+        rescored = []
+        for item, rr in zip(candidates, rr_scores):
+            idx = int(item["idx"])
+            text = self.corpus[idx]["text"]
+            meta_boost = self._metadata_boost(query, text)
+            final_score = (
+                0.30 * float(item["vector_score"])
+                + 0.25 * float(rr)
+                + 0.25 * float(item["rrf"])
+                + 1.00 * float(meta_boost)
+            )
+            row = dict(self.corpus[idx])
+            row["idx"] = idx
+            row["vector_score"] = float(item["vector_score"])
+            row["bm25_score"] = float(item["bm25_score"])
+            row["rerank_score"] = float(rr)
+            row["metadata_boost"] = float(meta_boost)
+            row["final_score"] = float(final_score)
+            rescored.append(row)
+
+        rescored.sort(key=lambda x: x["final_score"], reverse=True)
+        return rescored[:FINAL_TOP_K]
 
     def extract_architecture(self, user_text: str):
         prompt = f"""

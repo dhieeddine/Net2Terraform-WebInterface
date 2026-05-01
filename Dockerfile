@@ -30,7 +30,7 @@ RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/te
     && rm -f /tmp/terraform.zip \
     && terraform version
 
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY backend/requirements.docker.txt /tmp/requirements.txt
 RUN pip install --upgrade pip \
     && pip install -r /tmp/requirements.txt
 
