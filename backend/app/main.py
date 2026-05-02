@@ -11,6 +11,7 @@ from .routes.analyze import router as analyze_router
 from .routes.deploy import router as deploy_router
 from .routes.health import router as health_router
 from .routes.chat import router as chat_router
+from .routes.test_evaluation import router as test_evaluation_router
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -35,6 +36,7 @@ app.include_router(health_router)
 app.include_router(analyze_router)
 app.include_router(deploy_router)
 app.include_router(chat_router)
+app.include_router(test_evaluation_router)
 
 logger.info("All routers registered successfully")
 

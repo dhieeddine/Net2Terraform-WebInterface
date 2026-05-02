@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test & Evaluation - RAG/LLM Quality Assessment</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .eval-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .eval-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 20px;
+        }
+
+        .eval-header h1 {
+            color: #0066cc;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+
+        .eval-header p {
+            color: #666;
+            margin: 0;
+            font-size: 1.1em;
+        }
+
+        .eval-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-list-panel {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 20px;
+            height: fit-content;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .test-list-panel h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+        }
+
+        .test-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-left: 4px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .test-item:hover {
+            background: #e8f2ff;
+            border-left-color: #0066cc;
+            transform: translateX(5px);
+        }
+
+        .test-item.active {
+            background: #e8f2ff;
+            border-left-color: #0066cc;
+            font-weight: bold;
+        }
+
+        .test-item-name {
+            font-weight: bold;
+            color: #0066cc;
+            margin-bottom: 4px;
+        }
+
+        .test-item-desc {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .test-detail-panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .test-detail-panel h2 {
+            color: #0066cc;
+            margin-top: 0;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+        }
+
+        .test-prompt {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .expected-properties {
+            background: #f0f7ff;
+            border: 1px solid #0066cc;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+
+        .property-item {
+            margin: 8px 0;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #0066cc;
+        }
+
+        .property-key {
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .property-value {
+            color: #333;
+            margin-left: 10px;
+        }
+
+        .run-test-btn {
+            background: #0066cc;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: background 0.3s ease;
+            width: 100%;
+        }
+
+        .run-test-btn:hover {
+            background: #0052a3;
+        }
+
+        .run-test-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results-container.active {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .results-header h3 {
+            margin: 0;
+            color: #0066cc;
+        }
+
+        .result-status {
+            font-size: 1.1em;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 4px;
+        }
+
+        .result-status.passed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .result-status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .result-status.running {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .checks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .check-item {
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 4px solid;
+            background: #f9f9f9;
+        }
+
+        .check-item.passed {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .check-item.failed {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .check-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .check-result {
+            font-size: 0.9em;
+        }
+
+        .issues-section {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .issues-section.active {
+            display: block;
+        }
+
+        .issues-section h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+
+        .issue-item {
+            color: #856404;
+            margin: 6px 0;
+            padding: 6px;
+            background: white;
+            border-radius: 3px;
+            border-left: 3px solid #ffc107;
+            padding-left: 10px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        .metric-card {
+            background: #f0f7ff;
+            border: 1px solid #0066cc;
+            border-radius: 4px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .summary-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .summary-section h2 {
+            color: #0066cc;
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .stat-value.pass {
+            color: #28a745;
+        }
+
+        .stat-value.fail {
+            color: #dc3545;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .reset-btn {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95em;
+            margin-top: 15px;
+            transition: background 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: #5a6268;
+        }
+
+        @media (max-width: 1024px) {
+            .eval-content {
+                grid-template-columns: 1fr;
+            }
+
+            .test-list-panel {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="eval-container">
+        <div class="eval-header">
+            <h1>🧪 Test & Evaluation</h1>
+            <p>RAG and LLM Result Quality Assessment</p>
+        </div>
+
+        <div class="eval-content">
+            <!-- Left Panel: Test Cases List -->
+            <div class="test-list-panel">
+                <h2>Test Cases</h2>
+                <div id="testCasesList"></div>
+            </div>
+
+            <!-- Right Panel: Test Details & Results -->
+            <div class="test-detail-panel">
+                <h2 id="testTitle">Select a test case</h2>
+                
+                <div id="testDetail" style="display: none;">
+                    <div style="margin-bottom: 15px;">
+                        <strong>Description:</strong>
+                        <p id="testDescription" style="margin: 5px 0; color: #666;"></p>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <strong>Test Prompt:</strong>
+                        <div class="test-prompt" id="testPrompt"></div>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <strong>Expected Properties:</strong>
+                        <div class="expected-properties" id="expectedProperties"></div>
+                    </div>
+
+                    <button class="run-test-btn" id="runTestBtn" onclick="runCurrentTest()">
+                        Run Test
+                    </button>
+
+                    <!-- Results Section -->
+                    <div class="results-container" id="resultsContainer">
+                        <div class="results-header">
+                            <h3>Test Results</h3>
+                            <div class="result-status" id="resultStatus"></div>
+                        </div>
+
+                        <div class="checks-grid" id="checksGrid"></div>
+
+                        <div class="issues-section" id="issuesSection">
+                            <h4>⚠️ Issues Found</h4>
+                            <div id="issuesList"></div>
+                        </div>
+
+                        <div class="metrics-grid" id="metricsGrid"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <h2>📊 Evaluation Summary</h2>
+            <div class="summary-stats" id="summaryStats">
+                <div class="stat-box">
+                    <div class="stat-label">Total Evaluations</div>
+                    <div class="stat-value" id="totalEvals">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Passed</div>
+                    <div class="stat-value pass" id="passedEvals">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Failed</div>
+                    <div class="stat-value fail" id="failedEvals">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Pass Rate</div>
+                    <div class="stat-value" id="passRate">0%</div>
+                </div>
+            </div>
+            <button class="reset-btn" onclick="resetEvaluation()">Reset History</button>
+        </div>
+    </div>
+
+    <script src="test_evaluation.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+variable "aws_region" {
+  description = "AWS region used for deployment."
+  type        = string
+  default     = "us-west-2"
+}
+
+variable "availability_zone" {
+  description = "Availability zone used for generated subnets."
+  type        = string
+  default     = "us-west-2a"
+}
+
+variable "admin_cidr" {
+  description = "CIDR allowed to SSH into public instances."
+  type        = string
+  default     = "192.168.1.0/24"
+}
+
+variable "instance_type" {
+  description = "EC2 instance type for generated PCs and servers."
+  type        = string
+  default     = "t3.micro"
+}

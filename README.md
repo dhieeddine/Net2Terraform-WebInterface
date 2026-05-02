@@ -1,182 +1,93 @@
-# Net2Terraform 🚀
+# Net2Terraform
 
-**Net2Terraform** converts network designs into AWS Terraform (`main.tf`) using either images or conversational input.
+Net2Terraform converts network diagrams or conversational architecture descriptions into Terraform code and (optionally) deploys it to AWS.
 
-1.  **🖼️ Image Topology**: Convert a photo or scan of a network diagram using computer vision (YOLOv8 + OCR).
-2.  **💬 Architecture Chat**: Describe your network in natural language through an interactive AI-powered conversation (LLM + RAG).
-
----
-
-## 🎯 Goal
-
-The project removes manual Terraform drafting for common network topologies. Users can upload a topology diagram or describe an architecture and receive generated Terraform with deployment workflows.
-
-Best suited for:
-- **Rapid prototyping** from diagrams to IaC.
-- **Modernizing legacy documentation** into editable Terraform.
-- **Interactive architecture design** with validation prompts.
+This repository contains a FastAPI backend that exposes both a vision-based pipeline (YOLO + OCR + geometric link detection) and a conversational RAG-enabled pipeline to generate Terraform code. A small static frontend (HTML/JS) is included for demos.
 
 ---
 
-## 🧠 Two Ways to Build
-
-### 1. Image Topology Method (Vision)
-Pipeline stages:
-- **YOLOv8**: Detects network components (routers, switches, PCs, firewalls).
-- **Geometric Analysis**: Identifies cable connections between detected nodes.
-- **PaddleOCR + Tesseract**: Both OCR engines are used together to extract labels and device names.
-- **Vision LLM synthesis**: Builds Terraform from image + detections + links + OCR hints.
-
-### 2. Architecture Chat Method (Conversational)
-Pipeline stages:
-- **Natural language extraction**: Structured components and links are extracted through the LLM gateway.
-- **Interactive validation**: The assistant identifies missing information (for example, disconnected nodes).
-- **RAG (Retrieval-Augmented Generation)**: Uses technical documentation (`rules.pdf`) to guide generation.
+## Quick status
+- Backend: FastAPI (entry: `backend/app/main.py`)
+- Frontend: static files served from `frontend/` when present
+- Model weights: `backend/best.pt` (YOLO)
+- **NEW**: Test & Evaluation page for RAG/LLM quality assessment (`frontend/test_evaluation.html`)
+ - **NEW**: Notebook-parity pipeline under `backend/app/net2tf_v3` wired into chat + test endpoints
 
 ---
 
-## 🗺️ Global Pipeline Architecture
-
-```mermaid
-flowchart LR
-    U[User] --> FE[Frontend UI\nreception.html / index.html / chat.html]
-    FE --> API[FastAPI Backend\nbackend/app/main.py]
-
-    API --> A1[/api/analyze]
-    API --> G1[/api/generate-terraform]
-    API --> C1[/api/chat/send]
-    API --> D1[/api/deploy]
-
-    subgraph VisionPipeline[Vision Pipeline]
-        IMG[Uploaded Network Diagram] --> YOLO[YOLO Service\nobject detection]
-        YOLO --> VISION[Vision Service\nlink detection]
-        YOLO --> OCR[OCR Service\nlabel extraction]
-        VISION --> G1
-        OCR --> G1
-        YOLO --> G1
-        G1 --> OR[OpenRouter/Oxlo via LLM Gateway\nTerraform synthesis from image + hints]
-    end
-
-    subgraph ChatPipeline[Conversational Pipeline]
-        CHAT[User Architecture Description] --> CHATSRV[Chat Service]
-        CHATSRV --> LLMTXT[Gemini/OpenRouter/Oxlo via LLM Gateway\nJSON extraction + validation]
-        CHATSRV --> RAG[RAG Layer\nrules.pdf chunking + FAISS + BM25 + reranking]
-        RAG --> CHATSRV
-        LLMTXT --> CHATSRV
-        CHATSRV --> TFCHAT[Terraform code from structured architecture]
-        C1 --> CHATSRV
-    end
-
-    OR --> TF[Generated main.tf]
-    TFCHAT --> TF
-
-    TF --> D1
-    D1 --> TFSVC[Terraform Service\nworkspace + terraform init/apply/destroy]
-    TFSVC --> AWS[AWS Resources\nVPC / Subnets / EC2 / Routing]
-    TFSVC --> STATE[Job Logs + Parsed State\n/api/deploy/{job_id}/logs, /state]
-```
+## Prerequisites
+- Python 3.10+
+- Docker (optional, recommended for reproducible environment)
+- API keys for any LLM providers you plan to use (see `.env` section)
 
 ---
 
+## Workspace layout
 
-## 📂 Project Structure
+See the main pieces used by the README:
 
-```text
-webInterface/
-├── .env
-├── .gitignore
-├── README.md
-├── backend/
-│   ├── requirements.txt
-│   ├── gpu_requirements.txt
-│   ├── best.pt                  # YOLO model weights
-│   ├── rules.pdf                # [Optional] Context for the RAG chat method
-│   └── app/
-│       ├── main.py              # FastAPI bootstrap & router mounting
-│       ├── core/
-│       │   └── config.py        # Environment + runtime settings
-│       ├── routes/
-│       │   ├── analyze.py       # Image analysis endpoints
-│       │   ├── chat.py          # Conversational/RAG endpoints
-│       │   ├── deploy.py        # AWS Deployment orchestration
-│       │   └── health.py        # Health check
-│       └── services/
-│           ├── chat_service.py      # RAG + architecture extraction + validation
-│           ├── llm_gateway.py       # Provider routing/fallback for LLM calls
-│           ├── openrouter_service.py# Vision->Terraform prompt orchestration
-│           ├── ocr_service.py       # PaddleOCR + Tesseract label extraction
-│           ├── terraform_service.py # Terraform CLI job/workspace manager
-│           ├── vision_service.py    # Geometric link detection
-│           └── yolo_service.py      # Object detection
-├── Dockerfile
-├── docker-compose.yml
-└── frontend/
-    ├── reception.html           # Main landing page (Method selector)
-    ├── index.html               # Image method interface
-    ├── chat.html                # Conversational method interface
-    ├── app.js                   # Logic for image method
-    ├── chat.js                  # Logic for chat method
-    └── styles.css               # Shared glass-morphic design system
-```
+- Backend API: `backend/app/` (routes, services, config)
+- Notebook pipeline: `backend/app/net2tf_v3/` (ported from final-rag.ipynb)
+- Requirements: `backend/requirements.txt` and `backend/requirements.docker.txt`
+- Frontend static: `frontend/` (reception.html, index.html, chat.html)
+- Docker: `Dockerfile`, `docker-compose.yml`
+- Knowledge base: `kb/` (markdown files used by the notebook pipeline)
 
-## 🛠️ Prerequisites
+---
 
-1.  **Python 3.10+**
-2.  **API Keys** (at least one configured provider per workflow):
-    - **Google Gemini API Key** (optional, for chat/text provider)
-    - **OpenRouter API Key** (optional, for vision/text provider)
-    - **Oxlo API Key** (optional, for vision/text provider)
-3.  **YOLO weights**: `best.pt` file in the `backend/` directory.
-4.  **Hardware**: CPU works; GPU is optional and used when available.
+## Environment configuration
 
-## ⚙️ Environment Configuration
+Create a `.env` file at the project root (next to this README). See [`.env.example`](.env.example) for a complete template with all available variables.
 
-Edit `.env` at the project root:
+### Required Variables
+At least **one** LLM API key is required:
+- `GOOGLE_API_KEY` — Google Gemini API
+- `OPENROUTER_API_KEY` — OpenRouter API
+- `OXLO_API_KEY` — Oxlo API
 
-```env
-# AI & ML
-GOOGLE_API_KEY=your_gemini_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-OXLO_API_KEY=your_oxlo_api_key
-YOLO_WEIGHTS=backend/best.pt
-RULES_PDF_PATH=backend/rules.pdf
+If you use the notebook-parity pipeline (compile_prompt), also set:
+- `GROQ_API_KEY` — Groq API key (required by `backend/app/net2tf_v3`)
 
-# Provider order / failover
-CHAT_LLM_PROVIDERS=google,openrouter,oxlo
-VISION_LLM_PROVIDERS=openrouter,oxlo
+### Optional but Recommended (AWS Deployment)
+If deploying generated Terraform to AWS:
+- `AWS_ACCESS_KEY_ID` — AWS access key
+- `AWS_SECRET_ACCESS_KEY` — AWS secret key
+- `AWS_DEFAULT_REGION` — AWS region (defaults to `us-east-1`)
 
-# AWS Credentials (for Deployment)
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_DEFAULT_REGION=us-east-1
+### Optional (Most Have Defaults)
+- `PORT` — Server port (default: `8000`)
+- `YOLO_WEIGHTS` — Path to YOLO model weights (default: `best.pt`)
+- `RULES_PDF_PATH` — Path to architecture rules PDF (default: `backend/rules.pdf`)
+- `CHAT_LLM_PROVIDERS` — Comma-separated fallback order (default: `google,openrouter,oxlo`)
+- `VISION_LLM_PROVIDERS` — Vision model providers (default: `openrouter,oxlo`)
+- `TESSERACT_CMD` — Path to tesseract (only if non-standard location)
+- `PADDLEOCR_LANG` — OCR language code (default: `en`)
+- `PADDLEOCR_DEVICE` — OCR device (auto-detected if not set)
 
-# Server Config
-PORT=8000
-```
-
-## 🚀 Getting Started
-
-### 1. Install Dependencies
+### Quick Start
 ```powershell
-# Create virtual environment
+# Copy the example template
+copy .env.example .env
+
+# Edit .env with your API keys
+notepad .env
+```
+
+---
+
+## Install (recommended: virtual environment)
+
+Windows PowerShell (recommended):
+
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-
-# Install backend requirements
 pip install -r backend/requirements.txt
 ```
 
-### 2. Run the Application
-```powershell
-# Start FastAPI backend
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+If you plan to run inside Docker (CPU image), the image installs the appropriate wheel indexes — use `backend/requirements.docker.txt` inside the Docker build.
 
-### 3. Usage
-Open `http://localhost:8000/` (or `http://localhost:8000/reception.html`) to choose your preferred method.
-
-### 4. Optional GPU dependencies
-If you want GPU OCR/inference support, install:
+GPU / optional heavy dependencies:
 
 ```powershell
 pip install -r backend/gpu_requirements.txt
@@ -184,54 +95,151 @@ pip install -r backend/gpu_requirements.txt
 
 ---
 
-## 🐳 Run With Docker
+## Run locally (development)
 
-This repository now includes a production-style container setup for the FastAPI service.
+From the project root, run the FastAPI app with uvicorn:
 
-### 1. Build and Start
 ```powershell
-docker compose up --build
+# From project root
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 2. Open the App
-- Health check: `http://localhost:8000/api/health`
-- Root status endpoint: `http://localhost:8000/`
+The app exposes the API under `/api/*`. If the `frontend/` directory exists, static pages are mounted and the root (`/`) will serve `reception.html`.
 
-If a `frontend` directory exists in the project root, static pages are also served by FastAPI (for example, `http://localhost:8000/reception.html`).
+Open the demo pages in a browser:
 
-### 3. Stop
+- Reception / selector: http://localhost:8000/reception.html
+- Image method: http://localhost:8000/index.html
+- Chat method: http://localhost:8000/chat.html
+- Test & Evaluation: http://localhost:8000/test_evaluation.html
+
+If you prefer to serve the frontend separately (development), you can run a simple static server inside the `frontend/` folder:
+
 ```powershell
+# serve static files on port 8001 for example
+cd frontend
+python -m http.server 8001
+# then open http://localhost:8001/index.html
+```
+
+---
+
+## Notebook-parity pipeline (net2tf_v3)
+
+The app includes a port of the notebook pipeline under `backend/app/net2tf_v3`. This path powers:
+- `POST /api/chat/send`
+- `POST /api/test/run/{test_name}`
+
+The pipeline relies on:
+- `kb/` markdown files (knowledge base)
+- A Groq API key (`GROQ_API_KEY`)
+- Optional Terraform CLI if you want quality checks to pass (fmt/init/validate)
+
+If `kb/` is missing, retrieve it from Kaggle and place it at repo root.
+
+---
+
+## Run with Docker (recommended for reproducible environment)
+
+Build and start with docker-compose (from project root):
+
+```powershell
+# build and start
+docker compose up --build
+
+# stop and remove
 docker compose down
 ```
 
-Notes:
-- The compose file forces Linux-compatible OCR path: `TESSERACT_CMD=/usr/bin/tesseract`.
-- Terraform CLI is installed inside the container for `/api/deploy` endpoints.
-- `backend/deployments` is mounted as a volume to persist deployment workspaces/logs.
+Health check endpoint (after container starts):
+
+- `http://localhost:8000/api/health`
+
+Notes about Docker:
+- The compose file and Dockerfile are configured to install OCR/Tesseract and Terraform inside the service image. If you encounter CPU/GPU wheel issues, prefer building on a Linux host or using the provided `requirements.docker.txt` settings.
 
 ---
 
-## 🔌 API Documentation
+## APIs (short summary)
 
-### Conversational Method (Chat)
-- `POST /api/chat/send`: Sends user message, returns assistant response and current architecture state.
-- `POST /api/chat/reset`: Resets the conversational session.
+### Image & Chat Methods
+- `POST /api/analyze` — analyze uploaded image (YOLO + link detection + OCR)
+- `POST /api/generate-terraform` — synthesize Terraform from image + hints
+- `POST /api/chat/send` — conversational architecture extraction + RAG
+- `POST /api/deploy` — submit Terraform to the deploy/workspace service
+- `GET /api/deploy/{job_id}/logs` — fetch logs for a deployment job
 
-### Vision Method (Image)
-- `POST /api/analyze`: Runs YOLO + link detection + OCR and returns detections, links, OCR names, and an annotated image.
-- `POST /api/generate-terraform`: Generates Terraform from image + detected hints + optional OCR name overrides.
+### Test & Evaluation (Quality Assurance)
+- `GET /api/test/cases` — list all available test cases
+- `GET /api/test/cases/{test_name}` — retrieve a specific test case
+- `POST /api/test/run/{test_name}` — run a test and evaluate results
+- `GET /api/test/summary` — get evaluation summary statistics
+- `POST /api/test/reset` — clear evaluation history
+- `GET /api/test/health` — check test service status
 
-### Deployment Service
-- `POST /api/deploy`: Submits a Terraform code payload for AWS deployment.
-- `GET /api/deploy/jobs`: Lists known deployment jobs.
-- `GET /api/deploy/{job_id}`: Returns job status and metadata.
-- `GET /api/deploy/{job_id}/logs`: Fetches real-time execution logs.
-- `GET /api/deploy/{job_id}/state`: Retrieves parsed resource information from the deployment.
-- `POST /api/deploy/{job_id}/destroy`: Triggers infrastructure teardown.
+See `backend/app/routes/` for full route definitions and request/response schemas.
 
 ---
 
-## 📝 Notes
-- **RAG Capability**: Place a `rules.pdf` at `backend/rules.pdf` (or set `RULES_PDF_PATH`) to improve chat-grounded generation.
-- **Glass-Morphic Design**: The frontend utilizes a shared modern CSS design system for a premium user experience across all modules.
-- **Security**: AWS credentials and API keys are strictly managed via environment variables.
+## Test & Evaluation Feature
+
+The Test & Evaluation page provides a user-friendly interface to assess RAG and LLM result quality:
+
+### Features
+- **Pre-defined Test Cases**: 5 test scenarios covering single router, manual addressing, NAT, peering, and Transit Gateway configurations
+- **Automated Testing**: Run test cases with a single click and receive detailed pass/fail results
+- **Quality Metrics**: Terraform code validation, connectivity mode verification, and architecture property checks
+- **Evaluation Summary**: Track total evaluations, pass rates, and historical results
+- **Visual Feedback**: Color-coded results (green=pass, red=fail) with detailed issue reporting
+
+### Test Case Coverage
+1. **Single Router (Auto)** — Basic topology with automatic addressing
+2. **Single Router (Manual)** — Manual CIDR assignment for single router
+3. **Public/Private with NAT** — Multi-subnet with internet gateway and NAT
+4. **Two Router Peering** — VPC peering between two routers
+5. **Three Router Transit Gateway** — Multi-router connectivity via Transit Gateway
+
+### Accessing Test & Evaluation
+
+From the reception page, click "Test & Evaluation" or navigate directly to:
+```
+http://localhost:8000/test_evaluation.html
+```
+
+The test page communicates with the backend API endpoints under `/api/test/` to run evaluations and collect metrics.
+
+### Running Tests Programmatically
+
+```bash
+# Get all test cases
+curl http://localhost:8000/api/test/cases
+
+# Run a specific test
+curl -X POST http://localhost:8000/api/test/run/01_easy_auto_single_router
+
+# Get evaluation summary
+curl http://localhost:8000/api/test/summary
+```
+
+---
+
+## Minor clarifications / compatibility notes
+
+- The README has been updated to use Windows PowerShell activation commands by default (the repo is cross-platform).
+- The FastAPI entrypoint used here is `backend.app.main:app` (use this with uvicorn from the workspace root).
+- Environment variables are read by `backend/app/core/config.py`; place `.env` at the project root so those values are loaded.
+- Docker build uses `backend/requirements.docker.txt` which includes the PyTorch extra index for CPU wheels.
+- Test evaluation endpoints run the notebook-parity pipeline; ensure `GROQ_API_KEY` is set and `kb/` is present.
+
+If you want, I can also:
+- add a `.env.example` file with the variables listed above, or
+- create a short `scripts/` folder with convenient run scripts for Windows and bash.
+
+---
+
+## License & attribution
+This README does not change licensing. Check repository root for license information.
+
+---
+
+If you want a `.env.example` or a simple `Makefile`/PowerShell script to make local runs even easier, tell me which you prefer and I will add it.

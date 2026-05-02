@@ -1,0 +1,43 @@
+{% for rid, router in routers.items() %}
+output "{{ rid|lower }}_vpc_id" {
+  value = aws_vpc.{{ rid|lower }}.id
+}
+{% for subnet in router.subnets %}
+output "{{ rid|lower }}_{{ subnet.name|lower }}_subnet_id" {
+  value = aws_subnet.{{ rid|lower }}_{{ subnet.name|lower }}.id
+}
+{% for placement in subnet.host_placements %}
+output "{{ placement.host_id|lower }}_private_ip" {
+  value = aws_instance.{{ placement.host_id|lower }}.private_ip
+}
+
+output "{{ placement.host_id|lower }}_pem_file" {
+  value = local_file.{{ placement.host_id|lower }}.filename
+}
+
+{% if placement.exposure == "public" %}
+output "{{ placement.host_id|lower }}_public_ip" {
+  value = aws_instance.{{ placement.host_id|lower }}.public_ip
+}
+
+output "{{ placement.host_id|lower }}_ssh_command" {
+  value = "ssh -i ${local_file.{{ placement.host_id|lower }}.filename} ec2-user@${aws_instance.{{ placement.host_id|lower }}.public_ip}"
+}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+
+{% if connectivity_mode == "peering" %}
+{% for link in router_links %}
+output "{{ link[0]|lower }}_{{ link[1]|lower }}_peering_id" {
+  value = aws_vpc_peering_connection.{{ link[0]|lower }}_{{ link[1]|lower }}.id
+}
+{% endfor %}
+{% endif %}
+
+{% if connectivity_mode == "tgw" %}
+output "transit_gateway_id" {
+  value = aws_ec2_transit_gateway.core.id
+}
+{% endif %}
